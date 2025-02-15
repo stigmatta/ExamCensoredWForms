@@ -8,6 +8,7 @@ namespace ExamCensoredWForms
         private List<string> words = new List<string>();
         private CancellationTokenSource tokenSource;
         private SynchronizationContext sc;
+        private string foundFilesDir = "foundFiles";
 
         public Form1()
         {
@@ -61,10 +62,10 @@ namespace ExamCensoredWForms
 
                 await LoadProgressBar(30, tokenSource.Token);
                 CensoreAllToFile();
+
                 await SearchWordsInFilesAsync(words, tokenSource.Token);
 
                 ReportAllToFile(tokenSource.Token);
-
 
 
             }
@@ -169,6 +170,8 @@ namespace ExamCensoredWForms
                             string wordSummary = string.Join(", ", wordCounts.Select(kvp => $"{kvp.Key}: {kvp.Value}"));
                             var item = new ListViewItem(new[] { file, new FileInfo(file).Length.ToString(), wordSummary });
                             sc.Send(_ => listView1.Items.Add(item), null);
+
+                            await CopyFileToDirAsync(file, foundFilesDir);
                         }
 
                         await Task.Delay(1, token);
@@ -246,6 +249,27 @@ namespace ExamCensoredWForms
                 }
             }
         }
+
+        private async Task CopyFileToDirAsync(string filePath, string dirPath)
+        {
+            try
+            {
+                if (!File.Exists(filePath))
+                    throw new FileNotFoundException("Исходный файл не найден", filePath);
+
+                if (!Directory.Exists(dirPath))
+                    Directory.CreateDirectory(dirPath);
+
+                string destinationPath = Path.Combine(dirPath, Path.GetFileName(filePath));
+
+                await Task.Run(() => File.Copy(filePath, destinationPath, overwrite: true));
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Ошибка копирования файла: {ex.Message}");
+            }
+        }
+
         private void buttonEnd_Click(object sender, EventArgs e)
         {
             buttonEnd.Enabled = false;
